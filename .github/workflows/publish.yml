@@ -2,12 +2,17 @@ name: Upload Python Package
 
 on:
   release:
-    types: [published] # Runs when you create a "Release" on GitHub
-  workflow_dispatch: # Allows you to run it manually from the GitHub website
+    types: [published]
+  workflow_dispatch:
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    # --- ADD THESE PERMISSIONS ---
+    permissions:
+      id-token: write  # Mandatory for Trusted Publishing
+      contents: read   # Standard for checkout
+    # -----------------------------
     steps:
       - uses: actions/checkout@v4
 
@@ -26,5 +31,4 @@ jobs:
 
       - name: Publish package
         uses: pypa/gh-action-pypi-publish@release/v1
-        with:
-          password: ${{ secrets.PYPI_API_TOKEN }}
+        # Note: You no longer need the 'with: password' line!
