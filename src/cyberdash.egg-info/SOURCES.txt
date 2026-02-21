@@ -1,0 +1,17 @@
+README.md
+pyproject.toml
+src/cyberdash/app.py
+src/cyberdash/m.py
+src/cyberdash.egg-info/PKG-INFO
+src/cyberdash.egg-info/SOURCES.txt
+src/cyberdash.egg-info/dependency_links.txt
+src/cyberdash.egg-info/entry_points.txt
+src/cyberdash.egg-info/requires.txt
+src/cyberdash.egg-info/top_level.txt
+src/cyberdash/plugins/__init__.py
+src/cyberdash/plugins/base.py
+src/cyberdash/plugins/hardware.py
+src/cyberdash/plugins/n.py
+src/cyberdash/plugins/network.py
+src/cyberdash/plugins/processes.py
+src/cyberdash/plugins/shell.py
