@@ -163,10 +163,29 @@ class OverlordApp(App):
         self.run_worker(self.fetch_network_info, thread=True)
 
     async def fetch_network_info(self):
-        data, dns = self.net.trace_identity(), self.net.get_dns_provider()
+        """Fetch heavy network data in background."""
+        # This part is slow (Network I/O)
+        data = self.net.trace_identity()
+        dns = self.net.get_dns_provider()
+        
         if data:
-            self.app_data_cache, self.dns_name = data, dns
-            self.query_one("#net-id").update(f"IP: [y]{data['ip']}[/]\nISP: [y]{data['isp']}[/]\nDNS: [cyan]{dns}[/]")
+            self.app_data_cache = data
+            self.dns_name = dns
+            
+            # FORCE IMMEDIATE UI UPDATE
+            ms = self.net.get_latency()
+            ms_text = f"[bold green]{ms}ms[/]" if ms > 0 else "[red]OFFLINE[/]"
+            
+            val = (
+                f"IP: [y]{data['ip']}[/]\n"
+                f"ISP: [y]{data['isp']}[/]\n"
+                f"LOC: [y]{data['loc']}[/]\n"
+                f"DNS: [cyan]{dns}[/]\n"
+                f"LATENCY: {ms_text}"
+            )
+            # Update the widget directly from the worker
+            self.query_one("#net-id").update(val)
+            self.query_one("#sys-log").write("[green][*][/] Identity link established.\n")
 
     async def on_input_submitted(self, event: Input.Submitted):
         cmd = event.value.strip()

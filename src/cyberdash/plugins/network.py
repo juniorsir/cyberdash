@@ -6,75 +6,66 @@ import psutil
 
 class NetworkTracker:
     def trace_identity(self):
-        """Fetch ISP/IP info."""
-        headers = {"User-Agent": "TermuxCyberDash/1.2"}
-        try:
-            res = requests.get("https://ipapi.co/json/", headers=headers, timeout=5).json()
-            if res and not res.get("error"):
-                return {
-                    "ip": res.get('ip') or res.get('query'),
-                    "isp": res.get('org') or res.get('isp'),
-                    "loc": f"{res.get('city')}, {res.get('country_name') or res.get('country')}"
-                }
-        except:
-            pass
+        """Fetch ISP/IP info with multiple fallbacks."""
+        headers = {"User-Agent": "Mozilla/5.0 (Termux; CyberDash)"}
+        
+        # We try 3 different services in case one is down or rate-limiting you
+        endpoints = [
+            "https://ipapi.co/json/",      # Priority 1 (Best for ISP names)
+            "http://ip-api.com/json/",     # Priority 2 (Very reliable)
+            "https://ifconfig.me/all.json" # Priority 3 (Last resort)
+        ]
+        
+        for url in endpoints:
+            try:
+                res = requests.get(url, headers=headers, timeout=5).json()
+                if res and not res.get("error"):
+                    # Unify the different API response keys
+                    return {
+                        "ip": res.get('ip') or res.get('query') or res.get('ip_addr'),
+                        "isp": res.get('org') or res.get('isp') or "Unknown ISP",
+                        "loc": f"{res.get('city', 'N/A')}, {res.get('country_name') or res.get('country')}"
+                    }
+            except:
+                continue
         return None
 
     def get_network_state_key(self):
-        """
-        Creates a fingerprint of the network.
-        Now watches local IPs AND System DNS properties.
-        """
+        """Watch local IPs and DNS to detect connection changes."""
         key = ""
         try:
-            # 1. Watch Local IP changes (Wi-Fi vs Data)
             interfaces = psutil.net_if_addrs()
             for snic in interfaces:
                 for addr in interfaces[snic]:
                     key += str(addr.address)
-            
-            # 2. Watch Android DNS properties
-            # If you switch Private DNS, these properties often change
             key += subprocess.getoutput("getprop net.dns1")
-            key += subprocess.getoutput("getprop net.dns2")
-            
             return key
         except:
             return key
 
     def get_latency(self):
-        """Measure latency (ms)."""
+        """Live Latency probe."""
         targets = [("1.1.1.1", 53), ("8.8.8.8", 53), ("google.com", 80)]
         for host, port in targets:
             try:
                 start = time.time()
                 socket.create_connection((host, port), timeout=2)
-                end = time.time()
-                return int((end - start) * 1000)
+                return int((time.time() - start) * 1000)
             except:
                 continue
         return -1
 
     def get_dns_provider(self):
-        """Identifies the DNS provider handling your traffic."""
+        """DNS leak probe."""
         try:
-            # Check Cloudflare's diagnostic trace (Very fast)
             trace = requests.get("https://1.1.1.1/cdn-cgi/trace", timeout=2).text
             if "dns=on" in trace: return "Cloudflare (1.1.1.1)"
-            if "warp=on" in trace: return "Cloudflare WARP"
-        except:
-            pass
-
+        except: pass
         try:
-            # Server-side DNS leak probe
             res = requests.get("http://edns.ip-api.com/json", timeout=2).json()
-            dns_data = res.get("dns", {})
-            geo = dns_data.get("geo", "")
+            geo = res.get("dns", {}).get("geo", "")
             if "Cloudflare" in geo: return "Cloudflare DNS"
             if "Google" in geo: return "Google DNS"
-            if "OpenDNS" in geo: return "OpenDNS"
-            
-            ip = dns_data.get("ip", "")
-            return f"Resolver ({ip[:15]})" if ip else "ISP Default"
+            return res.get("dns", {}).get("ip", "ISP Default")
         except:
             return "ISP / Private DNS"
