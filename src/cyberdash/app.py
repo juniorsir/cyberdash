@@ -12,7 +12,7 @@ from .plugins.processes import ProcessEngine
 from .plugins.shell import ShellCore
 
 class OverlordApp(App):
-    ENABLE_COMMAND_PALETTE = False
+    ENABLE_COMMAND_PALETTE = True
     
     BINDINGS = [
         ("q", "quit", "Shutdown"),
